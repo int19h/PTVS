@@ -23,6 +23,9 @@ using Microsoft.PythonTools.DkmDebugger.Proxies.Structs;
 using Microsoft.VisualStudio.Debugger;
 using Microsoft.VisualStudio.Debugger.Evaluation;
 using Microsoft.VisualStudio.Debugger.Evaluation.IL;
+using System.Text;
+using Microsoft.PythonTools.DkmDebugger.Proxies;
+using Microsoft.VisualStudio.Debugger.CallStack;
 
 namespace Microsoft.PythonTools.DkmDebugger {
     /// <summary>
@@ -74,8 +77,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
                 return null;
             }
 
-            var pyEvalResult = new PythonEvaluationResult(objRef, "[Python view]")
-            {
+            var pyEvalResult = new PythonEvaluationResult(objRef, "[Python view]") {
                 Category = DkmEvaluationResultCategory.Property,
                 AccessType = DkmEvaluationResultAccessType.Private
             };
@@ -137,7 +139,8 @@ namespace Microsoft.PythonTools.DkmDebugger {
         }
 
         public DkmILEvaluationResult[] Execute(DkmILExecuteIntrinsic executeIntrinsic, DkmILContext iLContext, DkmCompiledILInspectionQuery inspectionQuery, DkmILEvaluationResult[] arguments, ReadOnlyCollection<DkmCompiledInspectionQuery> subroutines, out DkmILFailureReason failureReason) {
-            var pythonRuntime = iLContext.StackFrame.Process.GetPythonRuntimeInstance();
+            var process = iLContext.StackFrame.Process;
+            var pythonRuntime = process.GetPythonRuntimeInstance();
 
             // The mapping between functions and IDs is defined in PythonDkm.natvis.
             switch (executeIntrinsic.Id) {
@@ -147,8 +150,131 @@ namespace Microsoft.PythonTools.DkmDebugger {
                         pythonRuntime != null && DebuggerOptions.ShowPythonViewNodes ? (byte)1 : (byte)0
                     }))};
 
+                case 2: // PTVS_Eval
+                    {
+                        var ee = process.GetDataItem<ExpressionEvaluator>();
+                        if (ee == null) {
+                            failureReason = DkmILFailureReason.MemoryReadError;
+                            return null;
+                        }
+
+                        var pythonLang = DkmLanguage.Create("Python", new DkmCompilerId(Guids.MicrosoftVendorGuid, Guids.PythonLanguageGuid));
+
+                        var expr = DkmLanguageExpression.Create(pythonLang, DkmEvaluationFlags.None, GetString(process, arguments[0]), null);
+
+                        var inspectionSession = DkmInspectionSession.Create(process, null);
+
+                        var inspectionContext = DkmInspectionContext.Create(inspectionSession, pythonRuntime, iLContext.StackFrame.Thread,
+                            0, DkmEvaluationFlags.None, DkmFuncEvalFlags.None, 10, pythonLang, null);
+
+                        var vars = new List<DkmSuccessEvaluationResult>();
+                        for (int i = 1; i < arguments.Length; ++i) {
+                            var obj = GetPyObject(inspectionContext, iLContext.StackFrame, arguments[i], "_" + (i - 1));
+                            if (obj != null) {
+                                vars.Add(obj);
+                            }
+                        }
+
+                        var workList = DkmWorkList.Create(null);
+                        DkmEvaluationResult er = null;
+                        ee.EvaluateExpressionByWalkingObjects(vars, inspectionContext, workList, expr, iLContext.StackFrame, ar => {
+                            er = ar.ResultObject;
+                        });
+                        workList.Execute();
+
+                        var ser = er as DkmSuccessEvaluationResult;
+                        if (ser == null) {
+                            failureReason = DkmILFailureReason.MemoryReadError;
+                            return null;
+                        }
+
+                        var poer = ser.GetDataItem<ExpressionEvaluator.PyObjectEvaluationResult>();
+                        if (poer == null) {
+                            failureReason = DkmILFailureReason.MemoryReadError;
+                            return null;
+                        }
+
+                        ulong addr;
+                        var pyObj = poer.ValueStore as PyObject;
+                        if (pyObj != null) {
+                            addr = pyObj.Address;
+                        } else {
+                            var proxy = poer.ValueStore as PointerProxy<PyObject>?;
+                            if (proxy == null) {
+                                failureReason = DkmILFailureReason.MemoryReadError;
+                                return null;
+                            }
+                            addr = proxy.Value.Raw.Read();
+                        }
+
+                        byte[] addrBytes = process.Is64Bit() ? BitConverter.GetBytes(addr) : BitConverter.GetBytes((uint)addr);
+
+                        failureReason = DkmILFailureReason.None;
+                        return new[] { DkmILEvaluationResult.Create(executeIntrinsic.SourceId, new ReadOnlyCollection<byte>(addrBytes)) };
+                    }
+
                 default:
                     throw new NotSupportedException();
+            }
+        }
+
+        private static string GetString(DkmProcess process, DkmILEvaluationResult er) {
+            byte[] b;
+
+            if (er.IsPseudoAddress) {
+                b = er.DereferencedBytes.ToArray();
+            } else {
+                ulong addr = process.Is64Bit() ?
+                    (ulong)BitConverter.ToInt64(er.ResultBytes.ToArray(), 0) :
+                    (uint)BitConverter.ToInt32(er.ResultBytes.ToArray(), 0);
+                b = process.ReadMemoryString(addr, DkmReadMemoryFlags.None, 1, 1024);
+            }
+
+            return Encoding.Default.GetString(b, 0, b.Length - 1);
+        }
+
+        private static DkmSuccessEvaluationResult GetPyObject(DkmInspectionContext inspectionContext, DkmStackWalkFrame stackFrame, DkmILEvaluationResult er, string name) {
+            if (er.IsPseudoAddress) {
+                Debug.Fail("Cannot produce PyObject from a pseudo-address");
+                return null;
+            }
+
+            var process = stackFrame.Process;
+            var ee = process.GetDataItem<ExpressionEvaluator>();
+
+            ulong addr = process.Is64Bit() ?
+                (ulong)BitConverter.ToInt64(er.ResultBytes.ToArray(), 0) :
+                (uint)BitConverter.ToInt32(er.ResultBytes.ToArray(), 0);
+
+            PyObject objRef;
+            try {
+                objRef = PyObject.FromAddress(process, addr);
+            } catch {
+                return null;
+            }
+
+            var pyEvalResult = new PythonEvaluationResult(objRef, name) {
+                Category = DkmEvaluationResultCategory.Property,
+                AccessType = DkmEvaluationResultAccessType.Private
+            };
+
+            var cppLanguage = DkmLanguage.Create("C++", new DkmCompilerId(Guids.MicrosoftVendorGuid, Guids.CppLanguageGuid));
+            var inspectionSession = DkmInspectionSession.Create(process, null);
+            var cppInspectionContext = DkmInspectionContext.Create(inspectionSession, process.GetNativeRuntimeInstance(), stackFrame.Thread, 0,
+                DkmEvaluationFlags.TreatAsExpression | DkmEvaluationFlags.NoSideEffects, DkmFuncEvalFlags.None, 10, cppLanguage, null);
+
+            CppExpressionEvaluator cppEE;
+            try {
+                cppEE = new CppExpressionEvaluator(inspectionContext, stackFrame);
+            } catch (ArgumentException) {
+                Debug.Fail("Failed to create C++ expression evaluator while obtaining PyFrameObject from a native frame.");
+                return null;
+            }
+
+            try {
+                return ee.CreatePyObjectEvaluationResult(inspectionContext, stackFrame, null, pyEvalResult, cppEE, "PyObject", hasCppView: true) as DkmSuccessEvaluationResult;
+            } catch {
+                return null;
             }
         }
 
@@ -355,4 +481,4 @@ namespace Microsoft.PythonTools.DkmDebugger {
 
 #endif
     }
-}
+    }

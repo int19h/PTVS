@@ -73,7 +73,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
         /// <summary>
         /// Data item attached to a <see cref="DkmEvaluationResult"/> that represents a Python object (a variable, field of another object, collection item etc).
         /// </summary>
-        private class PyObjectEvaluationResult : DkmDataItem, IPythonEvaluationResult {
+        internal class PyObjectEvaluationResult : DkmDataItem, IPythonEvaluationResult {
 
             // Maps CLR types as returned from IValueStore.Read() to corresponding Python types.
             // Used to compute the expected Python type for a T_* slot of a native object, since we don't have the actual PyObject value yet.
@@ -569,7 +569,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
         /// <c>true</c> if evaluation was successful, or if it failed and no fallback is possible (e.g. expression is invalid).
         /// <c>false</c> if evaluation was not successful due to the limitations of this evaluator, and it may be possible to evaluate it correctly by other means.
         /// </returns>
-        private bool EvaluateExpressionByWalkingObjects(IEnumerable<DkmSuccessEvaluationResult> vars, DkmInspectionContext inspectionContext, DkmWorkList workList, DkmLanguageExpression expression, DkmStackWalkFrame stackFrame, DkmCompletionRoutine<DkmEvaluateExpressionAsyncResult> completionRoutine) {
+        internal bool EvaluateExpressionByWalkingObjects(IEnumerable<DkmSuccessEvaluationResult> vars, DkmInspectionContext inspectionContext, DkmWorkList workList, DkmLanguageExpression expression, DkmStackWalkFrame stackFrame, DkmCompletionRoutine<DkmEvaluateExpressionAsyncResult> completionRoutine) {
             var pyrtInfo = stackFrame.Thread.Process.GetPythonRuntimeInfo();
 
             var parserOptions = new ParserOptions { ErrorSink = new StringErrorSink() };
