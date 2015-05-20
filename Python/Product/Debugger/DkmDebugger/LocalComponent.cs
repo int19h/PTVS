@@ -38,6 +38,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
         ComponentBase,
 #if DEV14_OR_LATER
         IDkmIntrinsicFunctionEvaluator140,
+        IDkmILFailureReasonResolver,
 #endif
         IDkmModuleSymbolsLoadedNotification,
         IDkmRuntimeInstanceLoadNotification,
@@ -647,6 +648,14 @@ namespace Microsoft.PythonTools.DkmDebugger {
                     }
                 }
             }
+        }
+
+        string IDkmILFailureReasonResolver.ResolveILFailureReason(DkmCompiledInspectionQuery query, DkmILFailureReason errorCode) {
+            if ((int)errorCode == 123456) {
+                return "Python Error!";
+            }
+
+            return query.ResolveILFailureReason(errorCode);
         }
 
         [DataContract]

@@ -78,6 +78,13 @@
             </Filter>
             <Interface Name="IDkmIntrinsicFunctionEvaluator140"/>
           </InterfaceGroup>
+        
+          <InterfaceGroup>
+            <Filter>
+              <LanguageId RequiredValue="DkmLanguageId.Cpp"/>
+            </Filter>
+            <Interface Name="IDkmILFailureReasonResolver" />
+          </InterfaceGroup>
         </xsl:if>
 
         <InterfaceGroup>

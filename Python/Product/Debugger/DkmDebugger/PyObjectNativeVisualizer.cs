@@ -184,7 +184,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
 
                         var ser = er as DkmSuccessEvaluationResult;
                         if (ser == null) {
-                            failureReason = DkmILFailureReason.MemoryReadError;
+                            failureReason = (DkmILFailureReason)123456;
                             return null;
                         }
 
