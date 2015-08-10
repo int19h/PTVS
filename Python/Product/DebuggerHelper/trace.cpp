@@ -23,6 +23,10 @@ T ReadField(const void* p, int64_t offset) {
     return *reinterpret_cast<const T*>(reinterpret_cast<const char*>(p) + offset);
 }
 
+bool CharEqualsIgnoreCase(wchar_t c1, wchar_t c2) {
+    return CompareStringOrdinal(&c1, 1, &c2, 1, TRUE) == CSTR_EQUAL;
+}
+
 
 extern "C" {
 
@@ -114,15 +118,15 @@ PyObject* PyObject_Str(PyObject* o) {
 // A function to compare DebuggerString to a Python string object. This is set to either StringEquals27 or
 // to StringEquals33 by debugger, depending on the language version.
 __declspec(dllexport)
-bool (*stringEquals)(const struct DebuggerString* debuggerString, const void* pyString);
+bool (*stringEquals)(const struct DebuggerString* debuggerString, const void* pyString, bool ignoreCase);
 
 // A string provided by the debugger (e.g. for file names). This is actually a variable-length struct,
 // with _countof(data) == length + 1 - the extra wchar_t is the null terminator.
 struct DebuggerString {
     int32_t length;
     wchar_t data[1];
-    bool Equals(const void* pyString) const {
-        return stringEquals(this, pyString);
+    bool Equals(const void* pyString, bool ignoreCase) const {
+        return stringEquals(this, pyString, ignoreCase);
     }
 };
 
@@ -236,7 +240,7 @@ volatile uint32_t evalLoopSEHCode; // if a structured exception occured during e
 
 
 __declspec(dllexport)
-bool StringEquals27(const DebuggerString* debuggerString, const void* pyString) {
+bool StringEquals27(const DebuggerString* debuggerString, const void* pyString, bool ignoreCase) {
     int32_t my_length = debuggerString->length;
     const wchar_t* my_data = debuggerString->data;
 
@@ -249,9 +253,17 @@ bool StringEquals27(const DebuggerString* debuggerString, const void* pyString) 
         }
 
         const char* data = reinterpret_cast<const char*>(pyString) + fieldOffsets.PyBytesObject.ob_sval;
-        for (int32_t i = 0; i < my_length; ++i) {
-            if (data[i] != my_data[i]) {
-                return false;
+        if (ignoreCase) {
+            for (int32_t i = 0; i < my_length; ++i) {
+                if (!CharEqualsIgnoreCase(data[i], my_data[i])) {
+                    return false;
+                }
+            }
+        } else {
+            for (int32_t i = 0; i < my_length; ++i) {
+                if (data[i] != my_data[i]) {
+                    return false;
+                }
             }
         }
         return true;
@@ -262,7 +274,7 @@ bool StringEquals27(const DebuggerString* debuggerString, const void* pyString) 
         }
 
         const wchar_t* data = ReadField<const wchar_t*>(pyString, fieldOffsets.PyUnicodeObject27.str);
-        return memcmp(data, my_data, my_length * 2) == 0;
+        return CompareStringOrdinal(data, static_cast<int>(length), my_data, my_length, ignoreCase ? TRUE : FALSE) == CSTR_EQUAL;
     } else {
         return false;
     }
@@ -270,7 +282,7 @@ bool StringEquals27(const DebuggerString* debuggerString, const void* pyString) 
 
 
 __declspec(dllexport)
-bool StringEquals33(const DebuggerString* debuggerString, const void* pyString) {
+bool StringEquals33(const DebuggerString* debuggerString, const void* pyString, bool ignoreCase) {
     // In 3.x, we only need to support Unicode strings - bytes is no longer a string type.
     void* ob_type = ReadField<void*>(pyString, fieldOffsets.PyObject.ob_type);
     if (reinterpret_cast<uint64_t>(ob_type) != types.PyUnicode_Type) {
@@ -303,7 +315,7 @@ bool StringEquals33(const DebuggerString* debuggerString, const void* pyString) 
             return false;
         }
 
-        return memcmp(wstr, my_data, my_length * 2) == 0;
+        return CompareStringOrdinal(wstr, wstr_length, my_data, my_length, ignoreCase ? TRUE : FALSE) == CSTR_EQUAL;
     }
 
     auto length = ReadField<SSIZE_T>(pyString, fieldOffsets.PyUnicodeObject33.length);
@@ -321,20 +333,40 @@ bool StringEquals33(const DebuggerString* debuggerString, const void* pyString) 
     }
 
     if (kind == 2) {
-        return memcmp(data, my_data, my_length * 2) == 0;
+        auto utf16Data = reinterpret_cast<const wchar_t*>(data);
+        return CompareStringOrdinal(utf16Data, static_cast<int>(length), my_data, my_length, ignoreCase ? TRUE : FALSE) == CSTR_EQUAL;
     } else if (kind == 1 || ascii) {
         auto asciiData = reinterpret_cast<const char*>(data);
-        for (int32_t i = 0; i < my_length; ++i) {
-            if (asciiData[i] != my_data[i]) {
-                return false;
+        if (ignoreCase) {
+            for (int32_t i = 0; i < my_length; ++i) {
+                if (!CharEqualsIgnoreCase(asciiData[i], my_data[i])) {
+                    return false;
+                }
+            }
+        } else {
+            for (int32_t i = 0; i < my_length; ++i) {
+                if (asciiData[i] != my_data[i]) {
+                    return false;
+                }
             }
         }
         return true;
     } else if (kind == 4) {
         auto ucs4Data = reinterpret_cast<const uint32_t*>(data);
-        for (int32_t i = 0; i < my_length; ++i) {
-            if (ucs4Data[i] != my_data[i]) {
-                return false;
+        if (ignoreCase) {
+            for (int32_t i = 0; i < my_length; ++i) {
+                if (ucs4Data[i] > 0xFFFF) {
+                    return false;
+                }
+                if (!CharEqualsIgnoreCase(static_cast<wchar_t>(ucs4Data[i]), my_data[i])) {
+                    return false;
+                }
+            }
+        } else {
+            for (int32_t i = 0; i < my_length; ++i) {
+                if (ucs4Data[i] != my_data[i]) {
+                    return false;
+                }
             }
         }
         return true;
@@ -471,7 +503,7 @@ static void TraceLine(void* frame) {
 
     for (const int32_t* pFileNameOffset = &fileNamesOffsets[fileNamesIndex]; *pFileNameOffset; ++pFileNameOffset) {
         const DebuggerString* fileName = reinterpret_cast<const DebuggerString*>(strings + *pFileNameOffset);
-        if (fileName->Equals(co_filename)) {
+        if (fileName->Equals(co_filename, true)) {
             currentSourceLocation.lineNumber = f_lineno;
             currentSourceLocation.fileName = reinterpret_cast<uint64_t>(fileName);
             EvalLoop(OnBreakpointHit);

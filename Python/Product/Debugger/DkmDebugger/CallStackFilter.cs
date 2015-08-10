@@ -87,7 +87,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
 
             var pythonRuntime = _process.GetPythonRuntimeInstance();
             var pythonModuleInstances = pythonRuntime.GetModuleInstances().OfType<DkmCustomModuleInstance>();
-            var pyModuleInstance = pythonModuleInstances.Where(m => m.FullName == loc.FileName).FirstOrDefault();
+            var pyModuleInstance = pythonModuleInstances.Where(m => string.Equals(m.FullName, loc.FileName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
             if (pyModuleInstance == null) {
                 pyModuleInstance = pythonModuleInstances.Single(m => m.Module.Id.Mvid == Guids.UnknownPythonModuleGuid);
             }

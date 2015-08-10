@@ -84,7 +84,10 @@ namespace Microsoft.PythonTools.DkmDebugger {
         }
 
         public bool Equals(SourceLocation other) {
-            return FileName == other.FileName && LineNumber == other.LineNumber && FunctionName == other.FunctionName && NativeAddress == other.NativeAddress;
+            return string.Equals(FileName, other.FileName, StringComparison.OrdinalIgnoreCase) &&
+                LineNumber == other.LineNumber &&
+                FunctionName == other.FunctionName &&
+                NativeAddress == other.NativeAddress;
         }
 
         public override bool Equals(object obj) {
@@ -93,7 +96,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
         }
 
         public override int GetHashCode() {
-            return new { FileName, LineNumber, FunctionName, NativeAddress }.GetHashCode();
+            return new { FileName = (FileName ?? "").ToUpperInvariant(), LineNumber, FunctionName, NativeAddress }.GetHashCode();
         }
     }
 }

@@ -141,7 +141,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
                 }
 
                 string filename = filenameObj.ToString();
-                if (process.GetPythonRuntimeInstance().GetModuleInstances().Any(mi => mi.FullName == filename)) {
+                if (process.GetPythonRuntimeInstance().GetModuleInstances().Any(mi => string.Equals(mi.FullName, filename, StringComparison.OrdinalIgnoreCase))) {
                     return;
                 }
 
@@ -161,7 +161,7 @@ namespace Microsoft.PythonTools.DkmDebugger {
                 }
 
                 string filename = new CStringProxy(process, filenamePtr).ReadUnicode();
-                if (process.GetPythonRuntimeInstance().GetModuleInstances().Any(mi => mi.FullName == filename)) {
+                if (process.GetPythonRuntimeInstance().GetModuleInstances().Any(mi => string.Equals(mi.FullName, filename, StringComparison.OrdinalIgnoreCase))) {
                     return;
                 }
 
