@@ -186,6 +186,29 @@
       <Private>True</Private>
       <IncludeInVSIX>True</IncludeInVSIX>
     </Reference>
+    <Reference Include="Microsoft.VisualStudio.ApplicationCapabilities.Publish.Contracts, Version=$(VSTarget).0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>$(DevEnvDir)\Extensions\Microsoft\Publish\Microsoft.VisualStudio.ApplicationCapabilities.Publish.Contracts.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Web.WindowsAzure.CommonContracts, Version=$(VSTarget).0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>$(DevEnvDir)\Extensions\Microsoft\Web Tools Azure\Microsoft.VisualStudio.Web.WindowsAzure.CommonContracts.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.WindowsAzure.MicrosoftWeb, Version=$(VSTarget).0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>$(DevEnvDir)\Extensions\Microsoft\Web Tools Azure\Microsoft.VisualStudio.WindowsAzure.MicrosoftWeb.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.WindowsAzure.Client.Contracts.2.8, Version=$(VSTarget).0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>$(DevEnvDir)\Extensions\Microsoft\Web Tools Azure\Microsoft.WindowsAzure.Client.Contracts.2.8.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.WindowsAzure.Client.MicrosoftWeb, Version=$(VSTarget).0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>$(DevEnvDir)\Extensions\Microsoft\Web Tools Azure\Microsoft.WindowsAzure.Client.MicrosoftWeb.dll</HintPath>
+    </Reference>
+    <!-- For IVsWebProjectPublishService, needed to provide IProfileManager -->
+    <Reference Include="Microsoft.VisualStudio.Web.Publish.Contracts, Version=$(VSTarget).0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>$(DevEnvDir)\Extensions\Microsoft\Web Tools\Publish\Microsoft.VisualStudio.Web.Publish.Contracts.dll</HintPath>
+    </Reference>
+    <!-- For IProfileManager -->
+    <Reference Include="Microsoft.VisualStudio.Web.Publish.Core.Contracts, Version=$(VSTarget).0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>$(DevEnvDir)\Extensions\Microsoft\Web Tools\Publish\Microsoft.VisualStudio.Web.Publish.Core.Contracts.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
@@ -248,6 +271,18 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="PythonTools\Publishing\PythonAppServiceOptionsControl.xaml.cs">
+      <DependentUpon>PythonAppServiceOptionsControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="PythonTools\Publishing\PythonProfileCommand.cs" />
+    <Compile Include="PythonTools\Publishing\PythonAppServiceProfileVisualFactoryProvider.cs" />
+    <Compile Include="PythonTools\Publishing\PythonAppServiceProfileVisualFactory.cs" />
+    <Compile Include="PythonTools\Publishing\PythonAppServiceProfileVisual.cs" />
+    <Compile Include="PythonTools\Publishing\PythonPublishSteps.cs" />
+    <Compile Include="PythonTools\Publishing\PythonPublishPersistence.cs" />
+    <Compile Include="PythonTools\Publishing\PythonBuildAndPublish.cs" />
+    <Compile Include="PythonTools\Publishing\PythonPublishUserInterface.cs" />
+    <Compile Include="PythonTools\Publishing\PythonPublishRequirements.cs" />
     <Compile Include="PythonTools\CodeCoverage\CoverageExporter.cs" />
     <Compile Include="PythonTools\CodeCoverage\CoverageFileInfo.cs" />
     <Compile Include="PythonTools\CodeCoverage\CoverageHit.cs" />
@@ -960,6 +995,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="PythonTools\Project\ImportWizard\ImportWizardDictionary.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="PythonTools\Publishing\PythonAppServiceOptionsControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

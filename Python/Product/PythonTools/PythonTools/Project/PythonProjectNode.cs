@@ -584,7 +584,7 @@ namespace Microsoft.PythonTools.Project {
         }
 
         protected override string ProjectCapabilities {
-            get { return "Python"; }
+            get { return "Python ManagedPublish"; }
         }
 
         public override string GetFormatList() {
