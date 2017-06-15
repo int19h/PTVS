@@ -36,7 +36,6 @@ typedef PyInterpreterState* (PyInterpreterState_Head)();
 typedef PyThreadState* (PyInterpreterState_ThreadHead)(PyInterpreterState* interp);
 typedef PyThreadState* (PyThreadState_Next)(PyThreadState *tstate);
 typedef PyThreadState* (PyThreadState_Swap)(PyThreadState *tstate);
-typedef int (PyRun_SimpleString)(const char *command);
 typedef PyObject* (PyDict_New)();
 typedef PyObject* (PyModule_New)(const char *name);
 typedef PyObject* (PyModule_GetDict)(PyObject *module);
@@ -1041,55 +1040,25 @@ bool DoAttach(HMODULE module, ConnectionInfo& connInfo, bool isDebug) {
         wchar_t drive[_MAX_DRIVE], dir[_MAX_DIR], file[_MAX_FNAME], ext[_MAX_EXT];
         _wsplitpath_s(filename.c_str(), drive, _MAX_DRIVE, dir, _MAX_DIR, file, _MAX_FNAME, ext, _MAX_EXT);
 
-        wchar_t debuggerModuleFilePath[MAX_PATH];
-        wchar_t ipcModuleFilePath[MAX_PATH];
-        wchar_t replModuleFilePath[MAX_PATH];
-        wchar_t utilModuleFilePath[MAX_PATH];
-        _wmakepath_s(debuggerModuleFilePath, drive, dir, L"visualstudio_py_debugger", L".py");
-        _wmakepath_s(ipcModuleFilePath, drive, dir, L"visualstudio_py_ipcjson", L".py");
-        _wmakepath_s(replModuleFilePath, drive, dir, L"visualstudio_py_repl", L".py");
-        _wmakepath_s(utilModuleFilePath, drive, dir, L"visualstudio_py_util", L".py");
-
-        // Load modules in dependency order. Dependency graph:
-        //
-        // visualstudio_py_debugger --> visualstudio_py_repl --> visualstudio_py_util
-        //                        \______________________________^
-        //                         \
-        //                          --> visualstudio_py_ipcjson
-        auto utilModule = PyObjectHolder(isDebug, pyModuleNew("visualstudio_py_util"));
-        auto utilModuleDict = pyModuleGetDict(utilModule.ToPython());
-        LoadAndEvaluateCode(utilModuleFilePath, "visualstudio_py_util.py", connInfo, isDebug, utilModuleDict,
-            pyCompileString, dictSetItem, pyEvalCode, strFromString, getBuiltins, pyErrPrint);
-
-        auto replModule = PyObjectHolder(isDebug, pyModuleNew("visualstudio_py_repl"));
-        auto replModuleDict = pyModuleGetDict(replModule.ToPython());
-        dictSetItem(replModuleDict, "visualstudio_py_util", utilModule.ToPython());
-        LoadAndEvaluateCode(replModuleFilePath, "visualstudio_py_repl.py", connInfo, isDebug, replModuleDict,
-            pyCompileString, dictSetItem, pyEvalCode, strFromString, getBuiltins, pyErrPrint);
-
-        auto ipcModule = PyObjectHolder(isDebug, pyModuleNew("visualstudio_py_ipcjson"));
-        auto ipcModuleDict = pyModuleGetDict(ipcModule.ToPython());
-        LoadAndEvaluateCode(ipcModuleFilePath, "visualstudio_py_ipcjson.py", connInfo, isDebug, ipcModuleDict,
-            pyCompileString, dictSetItem, pyEvalCode, strFromString, getBuiltins, pyErrPrint);
+        wchar_t ptvsdLoaderPath[MAX_PATH];
+        _wmakepath_s(ptvsdLoaderPath, drive, dir, L"ptvsd_loader", L".py");
 
         auto globalsDict = PyObjectHolder(isDebug, pyDictNew());
-        dictSetItem(globalsDict.ToPython(), "visualstudio_py_util", utilModule.ToPython());
-        dictSetItem(globalsDict.ToPython(), "visualstudio_py_repl", replModule.ToPython());
-        dictSetItem(globalsDict.ToPython(), "visualstudio_py_ipcjson", ipcModule.ToPython());
-        LoadAndEvaluateCode(debuggerModuleFilePath, "visualstudio_py_debugger.py", connInfo, isDebug, globalsDict.ToPython(),
+
+        LoadAndEvaluateCode(ptvsdLoaderPath, "ptvsd_loader.py", connInfo, isDebug, globalsDict.ToPython(),
             pyCompileString, dictSetItem, pyEvalCode, strFromString, getBuiltins, pyErrPrint);
 
         // now initialize debugger process wide state
         auto attach_process = PyObjectHolder(isDebug, getDictItem(globalsDict.ToPython(), "attach_process"), true);
         auto new_thread = PyObjectHolder(isDebug, getDictItem(globalsDict.ToPython(), "new_thread"), true);
+        auto set_debugger_dll_handle = PyObjectHolder(isDebug, getDictItem(globalsDict.ToPython(), "set_debugger_dll_handle"), true);
 
         _interpreterInfo[interpreterId]->NewThreadFunction = new PyObjectHolder(
             isDebug,
-            getDictItem(globalsDict.ToPython(),
-            "new_external_thread"),
+            getDictItem(globalsDict.ToPython(), "new_external_thread"),
             true);
 
-        if (*attach_process == nullptr || *new_thread == nullptr) {
+        if (*attach_process == nullptr || *new_thread == nullptr || *set_debugger_dll_handle == nullptr) {
             connInfo.ReportErrorAfterAttachDone(ConnError_LoadDebuggerBadDebugger);
             return false;
         }
@@ -1228,10 +1197,7 @@ bool DoAttach(HMODULE module, ConnectionInfo& connInfo, bool isDebug) {
         HMODULE hModule = NULL;
         if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)GetCurrentModuleFilename, &hModule) != 0) {
             // set our handle so we can be unloaded on detach...
-            dictSetItem(globalsDict.ToPython(),
-                "debugger_dll_handle",
-                intFromSizeT((size_t)hModule)
-                );
+            DecRef(call(set_debugger_dll_handle.ToPython(), intFromSizeT((size_t)hModule), nullptr), isDebug);
         }
 
         return true;

@@ -122,6 +122,12 @@ from encodings import utf_8
 # save start_new_thread so we can call it later, we'll intercept others calls to it.
 
 debugger_dll_handle = None
+
+def set_debugger_dll_handle(handle):
+    global debugger_dll_handle
+    debugger_dll_handle = handle
+
+
 DETACHED = True
 def thread_creator(func, args, kwargs = {}, *extra_args):
     if not isinstance(args, tuple):

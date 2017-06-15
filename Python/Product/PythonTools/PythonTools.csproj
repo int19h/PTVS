@@ -725,6 +725,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
+    <Content Include="ptvsd_loader.py">
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="ptvsd\setup.py" />
     <Content Include="Snippets\Python\for.snippet">
       <IncludeInVSIX>true</IncludeInVSIX>
