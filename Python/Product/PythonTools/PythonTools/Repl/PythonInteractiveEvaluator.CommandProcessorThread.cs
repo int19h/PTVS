@@ -122,7 +122,7 @@ namespace Microsoft.PythonTools.Repl {
                 args.Add(interpreterArguments);
             }
 
-            args.Add(ProcessOutput.QuoteSingleArgument(PythonToolsInstallPath.GetFile("visualstudio_py_repl.py")));
+            args.Add(ProcessOutput.QuoteSingleArgument(PythonToolsInstallPath.GetFile("ptvsd_repl_launcher.py")));
             args.Add("--port");
             args.Add(portNum.ToString());
 
