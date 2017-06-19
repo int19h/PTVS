@@ -43,25 +43,8 @@ import runpy
 import datetime
 from codecs import BOM_UTF8
 
-try:
-    # In the local attach scenario, visualstudio_py_util is injected into globals()
-    # by PyDebugAttach before loading this module, and cannot be imported.
-    _vspu = visualstudio_py_util
-except:
-    try:
-        import visualstudio_py_util as _vspu
-    except ImportError:
-        import ptvsd.visualstudio_py_util as _vspu
-
-try:
-    # In the local attach scenario, visualstudio_py_ipcjson is injected into globals()
-    # by PyDebugAttach before loading this module, and cannot be imported.
-    _vsipc = visualstudio_py_ipcjson
-except:
-    try:
-        import visualstudio_py_ipcjson as _vsipc
-    except ImportError:
-        import ptvsd.visualstudio_py_ipcjson as _vsipc
+import ptvsd.util as _vspu
+import ptvsd.ipcjson as _vsipc
 
 to_bytes = _vspu.to_bytes
 exec_file = _vspu.exec_file
@@ -69,15 +52,7 @@ exec_module = _vspu.exec_module
 exec_code = _vspu.exec_code
 safe_repr = _vspu.SafeRepr()
 
-try:
-    # In the local attach scenario, visualstudio_py_repl is injected into globals()
-    # by PyDebugAttach before loading this module, and cannot be imported.
-    _vspr = visualstudio_py_repl
-except:
-    try:
-        import visualstudio_py_repl as _vspr
-    except ImportError:
-        import ptvsd.visualstudio_py_repl as _vspr
+import ptvsd.repl as _vspr
 
 try:
     import stackless
@@ -2623,11 +2598,6 @@ def parse_debug_options(s):
     return set([opt.strip() for opt in s.split(',')])
 
 def debug(file, port_num, debug_id, debug_options, run_as = 'script'):
-    # remove us from modules so there's no trace of us
-    sys.modules['$visualstudio_py_debugger'] = sys.modules['visualstudio_py_debugger']
-    __name__ = '$visualstudio_py_debugger'
-    del sys.modules['visualstudio_py_debugger']
-
     wait_on_normal_exit = 'WaitOnNormalExit' in debug_options
 
     attach_process(port_num, debug_id, debug_options, report = True)

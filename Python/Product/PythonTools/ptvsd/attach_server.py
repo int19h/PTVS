@@ -38,9 +38,9 @@ try:
 except ImportError:
     ssl = None
 
-import ptvsd.visualstudio_py_debugger as vspd
-import ptvsd.visualstudio_py_repl as vspr
-import ptvsd.visualstudio_py_ipcjson as vsipc
+import ptvsd.debugger as vspd
+import ptvsd.repl as vspr
+import ptvsd.ipcjson as vsipc
 
 
 # The server (i.e. the Python app) waits on a TCP port provided. Whenever

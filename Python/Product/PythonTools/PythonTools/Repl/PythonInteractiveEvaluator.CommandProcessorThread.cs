@@ -121,7 +121,7 @@ namespace Microsoft.PythonTools.Repl {
                 args.Add(interpreterArguments);
             }
 
-            args.Add(ProcessOutput.QuoteSingleArgument(PythonToolsInstallPath.GetFile("visualstudio_py_repl.py")));
+            args.Add(ProcessOutput.QuoteSingleArgument(PythonToolsInstallPath.GetFile("ptvsd_repl_launcher.py")));
             args.Add("--port");
             args.Add(portNum.ToString());
 
@@ -727,7 +727,7 @@ namespace Microsoft.PythonTools.Repl {
                     _stream.WriteInt32(frame);
                     _stream.WriteInt32((int)frameKind);
                     // TODO: Localization: we may need to do something with <CurrentFrame> string. Is it displayed?
-                    // It also appears visualstudio_py_repl.py so it probably needs to be in sync with it.
+                    // It also appears in ptvsd/repl/__init__.py so it probably needs to be in sync with it.
                     _currentScope = "<CurrentFrame>";
                     _currentScopeFileName = null;
                 }
