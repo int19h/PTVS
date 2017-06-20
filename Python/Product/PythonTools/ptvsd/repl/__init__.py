@@ -354,7 +354,6 @@ actual inspection and introspection."""
         to_bytes('inpl'): _cmd_inpl,
         to_bytes('excf'): _cmd_excf,
         to_bytes('excx'): _cmd_excx,
-        to_bytes('dbga'): _cmd_debug_attach,
     }
 
     def _write_member_dict(self, mem_dict):
