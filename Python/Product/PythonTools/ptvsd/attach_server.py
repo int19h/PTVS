@@ -161,7 +161,7 @@ def enable_attach(secret, address = ('0.0.0.0', DEFAULT_PORT), certfile = None, 
 
     atexit.register(vspd.detach_process_and_notify_debugger)
 
-    server = socket.socket(proto=socket.IPPROTO_TCP)
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(address)
     server.listen(1)
