@@ -969,7 +969,7 @@ def get_module_names():
     res = []
     for name, module in sys.modules.items():
         try:
-            if name != 'visualstudio_py_repl' and name != '$visualstudio_py_debugger':
+            if name != 'ptvsd' and not name.startswith('ptvsd.'):
                 if sys.platform == 'cli' and type(module) is NamespaceType:
                     get_namespaces(name, module, res)
                 else:
@@ -1010,7 +1010,7 @@ def is_internal_frame(tb):
     f = tb.tb_frame
     co = f.f_code
     filename = co.co_filename
-    return filename.endswith('visualstudio_py_repl.py') or filename.endswith('visualstudio_py_debugger.py')
+    return filename.contains('/ptvsd/') or filename.contains('\\ptvsd\\')
 
 '''
 This code is no longer used.
