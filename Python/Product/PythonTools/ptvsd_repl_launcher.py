@@ -112,7 +112,8 @@ if __name__ == '__main__':
         _run_repl()
     except:
         if repl.DEBUG:
-            _debug_write(traceback.format_exc())
-            _debug_write('exiting')
+            sys.__stdout__.write(traceback.format_exc())
+            sys.__stdout__.write('\n\nPress Enter to close...')
+            sys.__stdout__.flush()
             input()
         raise

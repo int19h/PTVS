@@ -535,7 +535,11 @@ class BasicReplBackend(ReplBackend):
                 self.exec_mod = Scope()
                 self.exec_mod.__name__ = '__main__'
             else:
-                sys.modules[mod_name] = self.exec_mod = imp.new_module(mod_name)
+                self.exec_mod = imp.new_module(mod_name)
+                # On 2.6, the below messes up the globals of the calling script
+                # if it is in sys.modules of the same name.
+                if sys.version_info >= (2, 7):
+                    sys.modules[mod_name] = self.exec_mod
         else:
             self.exec_mod = sys.modules['__main__']
 

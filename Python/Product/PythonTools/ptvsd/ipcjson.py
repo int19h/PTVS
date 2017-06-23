@@ -29,6 +29,7 @@ try:
     import thread
 except:
     import _thread as thread
+from ptvsd.util import to_bytes
 
 _TRACE = None
 
@@ -56,7 +57,7 @@ class InvalidContentError(Exception): pass
 class SocketIO(object):
     def __init__(self, *args, **kwargs):
         super(SocketIO, self).__init__(*args, **kwargs)
-        self.__buffer = b''
+        self.__buffer = to_bytes('')
         self.__port = kwargs.get('port')
         self.__socket = kwargs.get('socket')
         self.__own_socket = kwargs.get('own_socket', True)
