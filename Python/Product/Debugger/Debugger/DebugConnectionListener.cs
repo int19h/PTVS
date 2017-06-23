@@ -153,6 +153,9 @@ namespace Microsoft.PythonTools.Debugger {
                 }
             } catch (IOException) {
             } catch (SocketException) {
+            //} catch (TimeoutException) {
+            } catch (Exception ex) {
+                Environment.FailFast("DebugConnectionListener.AcceptConnection", ex);
             } finally {
                 stream?.Dispose();
                 socket?.Dispose();

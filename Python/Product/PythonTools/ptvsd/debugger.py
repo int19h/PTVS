@@ -2299,15 +2299,18 @@ def start_debugger_loop(sock):
 
 def attach_process(port_num, debug_id, debug_options, report = False, block = False):
     for i in xrange(50):
+        failure_cause = None
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(('127.0.0.1', port_num))
             break
-        except:
+        except Exception:
+            import traceback
+            failure_cause = traceback.format_exc()
             import time
             time.sleep(50./1000)
     else:
-        raise Exception('failed to attach')
+        raise Exception('Attach failed:\n\n' + failure_cause)
 
     start_debugger_loop(sock)
 

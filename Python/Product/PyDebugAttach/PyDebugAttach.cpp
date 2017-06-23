@@ -43,7 +43,6 @@ typedef PyObject* (Py_CompileString)(const char *str, const char *filename, int 
 typedef PyObject* (PyEval_EvalCode)(PyObject *co, PyObject *globals, PyObject *locals);
 typedef PyObject* (PyDict_GetItemString)(PyObject *p, const char *key);
 typedef PyObject* (PyObject_CallFunctionObjArgs)(PyObject *callable, ...);    // call w/ varargs, last arg should be NULL
-typedef void (PyErr_Fetch)(PyObject **, PyObject **, PyObject **);
 typedef PyObject* (PyEval_GetBuiltins)();
 typedef int (PyDict_SetItemString)(PyObject *dp, const char *key, PyObject *item);
 typedef int (PyEval_ThreadsInitialized)();
@@ -71,6 +70,8 @@ typedef PyGILState_STATE PyGILState_EnsureFunc(void);
 typedef void PyGILState_ReleaseFunc(PyGILState_STATE);
 typedef PyObject* PyInt_FromSize_t(size_t ival);
 typedef PyThreadState *PyThreadState_NewFunc(PyInterpreterState *interp);
+typedef PyObject* PyObject_Repr(PyObject*);
+typedef size_t PyUnicode_AsWideChar(PyObject *unicode, wchar_t *w, size_t size);
 
 class PyObjectHolder;
 PyObject* GetPyObjectPointerNoDebugInfo(bool isDebug, PyObject* object);
@@ -856,13 +857,15 @@ bool DoAttach(HMODULE module, ConnectionInfo& connInfo, bool isDebug) {
         auto setThreadTls = (PyThread_set_key_value*)GetProcAddress(module, "PyThread_set_key_value");
         auto delThreadTls = (PyThread_delete_key_value*)GetProcAddress(module, "PyThread_delete_key_value");
         auto PyCFrame_Type = (PyTypeObject*)GetProcAddress(module, "PyCFrame_Type");
+        auto pyObjectRepr = (PyObject_Repr*)GetProcAddress(module, "PyObject_Repr");
+        auto pyUnicodeAsWideChar = (PyUnicode_AsWideChar*)GetProcAddress(module, "PyUnicode_AsWideChar");
 
         if (addPendingCall == nullptr || curPythonThread == nullptr || interpHead == nullptr || gilEnsure == nullptr || gilRelease == nullptr || threadHead == nullptr ||
             initThreads == nullptr || releaseLock == nullptr || threadsInited == nullptr || threadNext == nullptr || threadSwap == nullptr ||
             pyDictNew == nullptr || pyCompileString == nullptr || pyEvalCode == nullptr || getDictItem == nullptr || call == nullptr ||
             getBuiltins == nullptr || dictSetItem == nullptr || intFromLong == nullptr || pyErrRestore == nullptr || pyErrFetch == nullptr ||
             errOccurred == nullptr || pyImportMod == nullptr || pyGetAttr == nullptr || pyNone == nullptr || pySetAttr == nullptr || boolFromLong == nullptr ||
-            getThreadTls == nullptr || setThreadTls == nullptr || delThreadTls == nullptr) {
+            getThreadTls == nullptr || setThreadTls == nullptr || delThreadTls == nullptr || pyObjectRepr == nullptr || pyUnicodeAsWideChar == nullptr) {
                 // we're missing some APIs, we cannot attach.
                 connInfo.ReportError(ConnError_PythonNotFound);
                 return false;
@@ -1045,8 +1048,10 @@ bool DoAttach(HMODULE module, ConnectionInfo& connInfo, bool isDebug) {
 
         auto globalsDict = PyObjectHolder(isDebug, pyDictNew());
 
-        LoadAndEvaluateCode(ptvsdLoaderPath, "ptvsd_loader.py", connInfo, isDebug, globalsDict.ToPython(),
-            pyCompileString, dictSetItem, pyEvalCode, strFromString, getBuiltins, pyErrPrint);
+        if (!LoadAndEvaluateCode(ptvsdLoaderPath, "ptvsd_loader.py", connInfo, isDebug, globalsDict.ToPython(),
+                pyCompileString, dictSetItem, pyEvalCode, strFromString, getBuiltins, pyErrPrint)) {
+            return false;
+        }
 
         // now initialize debugger process wide state
         auto attach_process = PyObjectHolder(isDebug, getDictItem(globalsDict.ToPython(), "attach_process"), true);
@@ -1067,7 +1072,19 @@ bool DoAttach(HMODULE module, ConnectionInfo& connInfo, bool isDebug) {
         auto debugId = PyObjectHolder(isDebug, strFromString(connInfo.Buffer->DebugId));
         auto debugOptions = PyObjectHolder(isDebug, strFromString(connInfo.Buffer->DebugOptions));
         DecRef(call(attach_process.ToPython(), pyPortNum.ToPython(), debugId.ToPython(), debugOptions.ToPython(), pyTrue, pyFalse, NULL), isDebug);
+        if (auto err = errOccurred()) {
+            PyObject *type, *value, *traceback;
+            pyErrFetch(&type, &value, &traceback);
 
+            auto repr = PyObjectHolder(isDebug, pyObjectRepr(value));
+            wchar_t reprText[0x1000] = {};
+            pyUnicodeAsWideChar(repr.ToPython(), reprText, _countof(reprText) - 1);
+            fputws(reprText, stderr);
+
+            connInfo.ReportErrorAfterAttachDone(ConnError_LoadDebuggerFailed);
+            return false;
+        }
+        
         auto sysMod = PyObjectHolder(isDebug, pyImportMod("sys"));
         if (*sysMod == nullptr) {
             connInfo.ReportErrorAfterAttachDone(ConnError_SysNotFound);

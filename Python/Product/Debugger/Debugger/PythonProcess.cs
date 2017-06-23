@@ -86,7 +86,7 @@ namespace Microsoft.PythonTools.Debugger {
                 }
 
                 _langVersion = (PythonLanguageVersion)result.LanguageVersion;
-                if (!result.AttachDone.WaitOne(20000)) {
+                if (!result.AttachDone.WaitOne(20000_000)) {
                     throw new ConnectionException(ConnErrorMessages.TimeOut);
                 }
             }
