@@ -128,12 +128,12 @@ namespace DebuggerTests {
                         };
 
                         await proc.StartListeningAsync();
-                        await Task.WhenAny(attached.Task, CancelAfter(30000_000, "Failed to attach within 30s")).Unwrap();
+                        await Task.WhenAny(attached.Task, CancelAfter(30000, "Failed to attach within 30s")).Unwrap();
 
-                        await Task.WhenAny(readyToContinue.Task, CancelAfter(30000_000, "Failed to hit the main thread breakpoint within 30s")).Unwrap();
+                        await Task.WhenAny(readyToContinue.Task, CancelAfter(30000, "Failed to hit the main thread breakpoint within 30s")).Unwrap();
                         await proc.ResumeAsync(TimeoutToken());
 
-                        await Task.WhenAny(threadBreakpointHit.Task, CancelAfter(30000_000, "Failed to hit the background thread breakpoint within 30s")).Unwrap();
+                        await Task.WhenAny(threadBreakpointHit.Task, CancelAfter(30000, "Failed to hit the background thread breakpoint within 30s")).Unwrap();
                         Assert.IsFalse(wrongLine, "Breakpoint broke on the wrong line");
 
                         Assert.AreNotEqual(mainThread, bpThread);
@@ -168,11 +168,11 @@ namespace DebuggerTests {
                         proc.ProcessExited += (sender, args) => {
                             detached.SetResult(true);
                         };
-                        await proc.StartListeningAsync(20000_000);
+                        await proc.StartListeningAsync(20000);
 
-                        await Task.WhenAny(attached.Task, CancelAfter(10000_000, "Failed to attach within 10s")).Unwrap();
+                        await Task.WhenAny(attached.Task, CancelAfter(10000, "Failed to attach within 10s")).Unwrap();
                         await proc.DetachAsync(TimeoutToken());
-                        await Task.WhenAny(detached.Task, CancelAfter(10000_000, "Failed to detach within 10s")).Unwrap();
+                        await Task.WhenAny(detached.Task, CancelAfter(10000, "Failed to detach within 10s")).Unwrap();
                     }
 
                     dumpWriter.Cancel();

@@ -858,7 +858,8 @@ bool DoAttach(HMODULE module, ConnectionInfo& connInfo, bool isDebug) {
         auto delThreadTls = (PyThread_delete_key_value*)GetProcAddress(module, "PyThread_delete_key_value");
         auto PyCFrame_Type = (PyTypeObject*)GetProcAddress(module, "PyCFrame_Type");
         auto pyObjectRepr = (PyObject_Repr*)GetProcAddress(module, "PyObject_Repr");
-        auto pyUnicodeAsWideChar = (PyUnicode_AsWideChar*)GetProcAddress(module, "PyUnicode_AsWideChar");
+        auto pyUnicodeAsWideChar = (PyUnicode_AsWideChar*)GetProcAddress(module,
+            version < PythonVersion_33 ? "PyUnicodeUCS2_AsWideChar" : "PyUnicode_AsWideChar");
 
         if (addPendingCall == nullptr || curPythonThread == nullptr || interpHead == nullptr || gilEnsure == nullptr || gilRelease == nullptr || threadHead == nullptr ||
             initThreads == nullptr || releaseLock == nullptr || threadsInited == nullptr || threadNext == nullptr || threadSwap == nullptr ||
