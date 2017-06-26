@@ -46,7 +46,7 @@ namespace DebuggerTests {
         }
 
         public void Dispose() {
-            if (_process == null) {
+            if (_process == null || _process.HasExited) {
                 return;
             }
 
