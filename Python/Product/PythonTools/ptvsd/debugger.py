@@ -861,8 +861,9 @@ class Thread(object):
             current.trace_function = current_tf
 
     def trace_func(self, frame, event, arg):
-        # If we're so far into process shutdown that sys is already gone, just stop tracing.
-        if sys is None:
+        # If we're so far into process shutdown that modules are being unloaded, stop tracing
+        # since we can't rely on any modules we've imported to still be working.
+        if sys is None or not sys.modules:
             return None
         elif self.is_sending:
             # https://pytools.codeplex.com/workitem/1864 
