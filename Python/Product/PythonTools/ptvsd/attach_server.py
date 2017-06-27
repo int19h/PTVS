@@ -85,7 +85,7 @@ _attached = threading.Event()
 vspd.DONT_DEBUG.append(os.path.normcase(__file__))
 
 
-def enable_attach(secret, address=('0.0.0.0', DEFAULT_PORT), certfile=None, keyfile=None, redirect_output=True):
+def enable_attach(secret, address=('0.0.0.0', ptvsd.DEFAULT_PORT), certfile=None, keyfile=None, redirect_output=True):
     if not ssl and (certfile or keyfile):
         raise ValueError('could not import the ssl module - SSL is not supported on this version of Python')
 
