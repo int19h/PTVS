@@ -176,7 +176,7 @@ repl = sys.modules['ptvsd.repl'].BACKEND
 repl is not None");
                 interactive.WaitForTextEnd(
                     ">import sys",
-                    ">repl = sys.modules['visualstudio_py_repl'].BACKEND",
+                    ">repl = sys.modules['ptvsd.repl'].BACKEND",
                     ">repl is not None",
                     "True",
                     ">"
