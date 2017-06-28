@@ -1013,7 +1013,7 @@ def is_internal_frame(tb):
     f = tb.tb_frame
     co = f.f_code
     filename = co.co_filename
-    return filename.contains('/ptvsd/') or filename.contains('\\ptvsd\\')
+    return '/ptvsd/' in filename or '\\ptvsd\\' in filename
 
 '''
 This code is no longer used.

@@ -204,7 +204,7 @@ namespace IpcJsonTests {
                 CheckProcessResult(proc);
             }
 
-            _connected.WaitOne();
+            _connected.WaitOne(10000);
 
             return proc;
         }
