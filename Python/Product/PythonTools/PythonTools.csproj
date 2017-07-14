@@ -693,6 +693,7 @@
   <ItemGroup>
     <!-- VSIX -->
     <Compile Include="PythonTools\Repl\PythonInteractiveEvaluator.CommandProcessorThread.cs" />
+    <None Include="ptvsd\tracer.py" />
     <None Include="Theme\contrast.vstheme" />
     <None Include="NoSurveyNewsFeed.htmlsrc" />
     <None Include="NoInterpreters.htmlsrc" />
@@ -725,7 +726,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
-    <Content Include="ptvsd\tracer.py" />
     <Content Include="ptvsd_repl_launcher.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
