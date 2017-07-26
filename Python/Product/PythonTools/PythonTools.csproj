@@ -693,6 +693,8 @@
   <ItemGroup>
     <!-- VSIX -->
     <Compile Include="PythonTools\Repl\PythonInteractiveEvaluator.CommandProcessorThread.cs" />
+    <None Include="ptvsd\inspect.py" />
+    <None Include="ptvsd\tests\test_inspect.py" />
     <None Include="Theme\contrast.vstheme" />
     <None Include="NoSurveyNewsFeed.htmlsrc" />
     <None Include="NoInterpreters.htmlsrc" />
@@ -974,6 +976,7 @@
       <SubType>Designer</SubType>
     </Page>
   </ItemGroup>
+  <ItemGroup />
   <PropertyGroup>
     <SharedProject_IncludeUIThreadBase>false</SharedProject_IncludeUIThreadBase>
   </PropertyGroup>
