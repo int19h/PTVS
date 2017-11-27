@@ -44,6 +44,7 @@ namespace Microsoft.PythonTools.Debugger {
             debugProcess.StartProcess(launchJson);
             return debugProcess;
         }
+
         private void StartProcess(string launchJson) {
             InitializeListenerSocket();
 
@@ -55,16 +56,18 @@ namespace Microsoft.PythonTools.Debugger {
 
             var arguments = (String.IsNullOrWhiteSpace(_interpreterOptions) ? "" : (_interpreterOptions + " ")) +
                 "\"" + PythonToolsInstallPath.GetFile("ptvsd_launcher.py") + "\" " +
-                "\"" + cwd + "\" " +
+                "\"" + cwd.TrimEnd('\\') + "\" " +
                 " " + _listenerPort + " " +
                 " " + _processGuid + " " +
                 "\"" + _debugOptions + "\" " +
                 "-g " +
                 args;
 
+            // TODO: switch to ProcessOutput class (for proper argument quoting)
+
             ProcessStartInfo psi = new ProcessStartInfo {
                 FileName = exe,
-                Arguments = args,
+                Arguments = arguments,
                 WorkingDirectory = cwd,
                 RedirectStandardError = true,
                 RedirectStandardInput = false,
@@ -74,7 +77,7 @@ namespace Microsoft.PythonTools.Debugger {
             };
 
             var env = json["env"].Value<JArray>();
-            if (env.Count>0) {
+            if (env.Count > 0) {
                 foreach (JObject curValue in env) {
                     var name = curValue["name"].Value<string>();
                     var value = curValue["value"].Value<string>();
@@ -92,17 +95,18 @@ namespace Microsoft.PythonTools.Debugger {
             _process.ErrorDataReceived += OnErrorDataReceived;
             _process.Start();
             _process.BeginErrorReadLine();
-            if (!_connectedEvent.WaitOne()){
-                Debug.WriteLine("Connection with debugger timedout.");
+
+            if (!_connectedEvent.WaitOne(5000)) {
+                Debug.WriteLine("Timed out waiting for debuggee to connect.", nameof(DebugAdapterProcess));
             }
         }
 
         private void OnErrorDataReceived(object sender, DataReceivedEventArgs e) {
-            Debug.WriteLine("Adapter process error: {0}", e.Data);
+            Debug.WriteLine($"Debug adapter stderr: {e.Data}", nameof(DebugAdapterProcess));
         }
 
         private void OnExited(object sender, EventArgs e) {
-            Debug.WriteLine("Python process exited with code: {0}", _process.ExitCode);
+            Debug.WriteLine($"Debug adapter exited with code: {_process.ExitCode}", nameof(DebugAdapterProcess));
         }
 
         public IntPtr Handle => _process.Handle;
@@ -152,7 +156,6 @@ namespace Microsoft.PythonTools.Debugger {
                 _stream = new NetworkStream(socket, ownsSocket: true);
                 _connectedEvent.Set();
             }
-            socketSource.BeginAccept(AcceptConnection, socketSource);
         }
 
         /***************************************************************************************************************
