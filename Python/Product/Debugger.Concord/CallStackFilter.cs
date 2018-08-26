@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.PythonTools.Debugger.Concord.Proxies;
 using Microsoft.PythonTools.Debugger.Concord.Proxies.Structs;
 using Microsoft.PythonTools.Parsing;
 using Microsoft.VisualStudio.Debugger;
@@ -30,6 +31,16 @@ namespace Microsoft.PythonTools.Debugger.Concord {
     internal class CallStackFilter : DkmDataItem {
         private class StackWalkContextData : DkmDataItem {
             public bool? IsLastFrameNative { get; set; }
+            public NativeFrameKind LastFrameKind { get; set; }
+
+            private PyFrameObject[] _knownFrames;
+
+            public PyFrameObject[] GetKnownFrames(DkmProcess process) {
+                if (_knownFrames == null) {
+                    _knownFrames = PyThreadState.GetThreadStates(process).SelectMany(tstate => tstate.GetFrames()).ToArray();
+                }
+                return _knownFrames;
+            }
         }
 
         private readonly DkmProcess _process;
@@ -70,16 +81,51 @@ namespace Microsoft.PythonTools.Debugger.Concord {
                     }
                     result.Add(nativeFrame);
                     return result.ToArray();
-                } else {
-                    stackWalkData.IsLastFrameNative = false;
-                    if (wasLastFrameNative == true) {
-                        result.Add(DkmStackWalkFrame.Create(nativeFrame.Thread, null, nativeFrame.FrameBase, nativeFrame.FrameSize,
-                            DkmStackWalkFrameFlags.NonuserCode, Strings.DebugCallStackPythonToNativeTransition, null, null));
-                    }
                 }
 
-                pythonFrame = PyFrameObject.TryCreate(nativeFrame);
+                stackWalkData.IsLastFrameNative = false;
+                if (wasLastFrameNative == true) {
+                    result.Add(DkmStackWalkFrame.Create(nativeFrame.Thread, null, nativeFrame.FrameBase, nativeFrame.FrameSize,
+                        DkmStackWalkFrameFlags.NonuserCode, Strings.DebugCallStackPythonToNativeTransition, null, null));
+                }
+
+                var frameAddr = PyFrameObject.TryGetAddress(nativeFrame, out var frameKind);
+                if (frameKind == NativeFrameKind.PyEval_EvalFrameEx) {
+                    // On 3.6+, PyEval_EvalFrameEx cannot be used to retrieve PyFrameObject reliably.
+                    if (_pyrtInfo.LanguageVersion >= PythonLanguageVersion.V36) {
+                        frameAddr = 0;
+                    }
+                } else if (frameKind == NativeFrameKind.PyEval_EvalFrameDefault) {
+                    // Only present in 3.6+.
+                    if (stackWalkData.LastFrameKind == NativeFrameKind.EvalFrameFunc) {
+                        // If the previous frame was EvalFrameFunc, we have already retrieved PyFrameObject
+                        // from that one, and there's no need to try to do so here; just skip it. 
+                        frameAddr = 0;
+                    } else {
+                        // If the previous frame was not EvalFrameFunc, then this is our last chance to retrieve
+                        // PyFrameObject. This can happen if we have just attached to an object, and are filtering
+                        // an existing stack that was constructed before our eval hook was in the picture - thus, 
+                        // it will have PyEval_EvalFrameEx invoking _PyEval_EvalFrameDefault directly.
+                        //
+                        // Because the object pointer may be optimized away, we can only do best effort here.
+                        // The assumption is that the pointer is mangled by making it point to some member of
+                        // PyFrameObject, rather than the object itself. To detect that, we look at all known
+                        // Python frame objects, retrieved via interpreter/thread state, and compare our pointer
+                        // to their boundaries in memory. Worst case, we match a wrong (but still valid) frame
+                        // object, or find no matching frame at all.
+
+                        var knownFrames = stackWalkData.GetKnownFrames(nativeFrame.Process);
+                        pythonFrame = knownFrames.Where(f => f.ContainsAddress(frameAddr)).FirstOrDefault();
+                        frameAddr = 0;
+                    }
+
+                    if (frameAddr != 0) {
+                        pythonFrame = new PyFrameObject(nativeFrame.Process, frameAddr);
+                    }
+                }
+                stackWalkData.LastFrameKind = frameKind;
             }
+
             if (pythonFrame == null) {
                 if (DebuggerOptions.ShowNativePythonFrames) {
                     result.Add(nativeFrame);

@@ -556,15 +556,15 @@ int TraceFunc(void* obj, void* frame, int what, void* arg) {
 }
 
 typedef void* (*_PyFrameEvalFunction)(void*, int);
-__declspec(dllexport)
-_PyFrameEvalFunction DefaultEvalFrameFunc = nullptr;
 
 __declspec(dllexport)
-void *EvalFrameFunc(void* f, int throwFlag)
-{
-    if (DefaultEvalFrameFunc)
+volatile _PyFrameEvalFunction DefaultEvalFrameFunc = nullptr;
+
+__declspec(dllexport)
+void *EvalFrameFunc(void* volatile f, int throwFlag) {
+    if (DefaultEvalFrameFunc) {
         return (*DefaultEvalFrameFunc)(f, throwFlag);
-
+    }
     return nullptr;
 }
 

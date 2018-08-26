@@ -98,7 +98,6 @@ namespace Microsoft.PythonTools.Debugger.Concord.Proxies.Structs {
             ? GetFieldProxy(_fields.exc_traceback)
             : GetFieldProxy(_fields.exc_state).exc_traceback;
 
-
         public Int32Proxy thread_id {
             get { return GetFieldProxy(_fields.thread_id); }
         }
@@ -107,7 +106,11 @@ namespace Microsoft.PythonTools.Debugger.Concord.Proxies.Structs {
             return PyInterpreterState.GetInterpreterStates(process).SelectMany(interp => interp.GetThreadStates());
         }
 
-        
+        public IEnumerable<PyFrameObject> GetFrames() {
+            for (var f = frame.TryRead(); f != null; f = f.f_back.TryRead()) {
+                yield return f;
+            }
+        }
     }
 
     [StructProxy(MinVersion = PythonLanguageVersion.V37, StructName = "_PyErr_StackItem")]

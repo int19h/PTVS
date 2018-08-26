@@ -111,5 +111,13 @@ namespace Microsoft.PythonTools.Debugger.Concord.Proxies {
             where TProxy : IDataProxy {
             return Create<TProxy>(r.Process, r.Address.OffsetBy(elementOffset * r.ObjectSize));
         }
+
+        /// <summary>
+        /// Determines whether a given address falls inside of this object.
+        /// </summary>
+        public static bool ContainsAddress<TProxy>(this TProxy proxy, ulong address)
+            where TProxy : IDataProxy =>
+            proxy.ObjectSize > 0 &&
+            address >= proxy.Address && address < proxy.Address + (ulong)proxy.ObjectSize;
     }
 }

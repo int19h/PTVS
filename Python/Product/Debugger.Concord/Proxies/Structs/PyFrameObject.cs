@@ -57,35 +57,47 @@ namespace Microsoft.PythonTools.Debugger.Concord.Proxies.Structs {
             CheckPyType<PyFrameObject>();
         }
 
-        private static bool IsInEvalFrame(DkmStackWalkFrame frame) {
-            var process = frame.Process;
-            var pythonInfo = process.GetPythonRuntimeInfo();
-            ulong addr = 0;
-            if (pythonInfo.LanguageVersion <= PythonLanguageVersion.V35) {
-                if (frame.ModuleInstance == pythonInfo.DLLs.Python) {
-                    addr = pythonInfo.DLLs.Python.GetFunctionAddress("PyEval_EvalFrameEx");
+        private static bool IsInSameFunction(DkmStackWalkFrame frame, ulong addr) =>
+            addr != 0 && frame.InstructionAddress.IsInSameFunction(frame.Process.CreateNativeInstructionAddress(addr));
+
+        private static NativeFrameKind GetNativeFrameKind(DkmStackWalkFrame frame) {
+            var pythonInfo = frame.Process.GetPythonRuntimeInfo();
+            var frameKind = NativeFrameKind.Other;
+            if (frame.ModuleInstance == pythonInfo.DLLs.Python) {
+                if (IsInSameFunction(frame, pythonInfo.DLLs.Python.GetFunctionAddress("PyEval_EvalFrameEx"))) {
+                    frameKind = NativeFrameKind.PyEval_EvalFrameEx;
+                } else if (IsInSameFunction(frame, pythonInfo.DLLs.Python.GetFunctionAddress("_PyEval_EvalFrameDefault"))) {
+                    frameKind = NativeFrameKind.PyEval_EvalFrameDefault;
                 }
-            } else {
-                if (frame.ModuleInstance == pythonInfo.DLLs.DebuggerHelper) {
-                    addr = pythonInfo.DLLs.DebuggerHelper.GetFunctionAddress("EvalFrameFunc");
+            } else if (frame.ModuleInstance == pythonInfo.DLLs.DebuggerHelper) {
+                if (IsInSameFunction(frame, pythonInfo.DLLs.DebuggerHelper.GetFunctionAddress("EvalFrameFunc"))) {
+                    frameKind = NativeFrameKind.EvalFrameFunc;
                 }
             }
-
-            if (addr == 0) {
-                return false;
-            }
-
-            return frame.InstructionAddress.IsInSameFunction(process.CreateNativeInstructionAddress(addr));
+            return frameKind;
         }
 
-        public static unsafe PyFrameObject TryCreate(DkmStackWalkFrame frame) {
+        public static PyFrameObject TryCreate(DkmStackWalkFrame frame) => TryCreate(frame, out _);
+
+        public static unsafe PyFrameObject TryCreate(DkmStackWalkFrame frame, out NativeFrameKind nativeFrameKind) {
+            var addr = TryGetAddress(frame, out nativeFrameKind);
+            return addr == 0 ? null : new PyFrameObject(frame.Process, addr);
+        }
+
+        public static unsafe ulong TryGetAddress(DkmStackWalkFrame frame, out NativeFrameKind nativeFrameKind) {
             var process = frame.Process;
 
+            nativeFrameKind = NativeFrameKind.Other;
             if (frame.InstructionAddress == null) {
-                return null;
-            } 
-            if (frame.RuntimeInstance.Id.RuntimeType != Guids.PythonRuntimeTypeGuid && !IsInEvalFrame(frame)) {
-                return null;
+                return 0;
+            }
+
+            nativeFrameKind = GetNativeFrameKind(frame);
+            if (frame.RuntimeInstance.Id.RuntimeType != Guids.PythonRuntimeTypeGuid &&
+                nativeFrameKind != NativeFrameKind.PyEval_EvalFrameDefault &&
+                nativeFrameKind != NativeFrameKind.PyEval_EvalFrameEx &&
+                nativeFrameKind != NativeFrameKind.EvalFrameFunc) {
+                return 0;
             }
 
             var cppLanguage = DkmLanguage.Create("C++", new DkmCompilerId(Guids.MicrosoftVendorGuid, Guids.CppLanguageGuid));
@@ -98,18 +110,15 @@ namespace Microsoft.PythonTools.Debugger.Concord.Proxies.Structs {
                 cppEval = new CppExpressionEvaluator(inspectionContext, frame);
             } catch (ArgumentException) {
                 Debug.Fail("Failed to create C++ expression evaluator while obtaining PyFrameObject from a native frame.");
-                return null;
+                return 0;
             }
 
-            ulong framePtr;
             try {
-                framePtr = cppEval.EvaluateUInt64("f");
+                return cppEval.EvaluateUInt64("f");
             } catch (CppEvaluationException) {
                 Debug.Fail("Failed to evaluate the 'f' parameter to PyEval_EvalFrameEx while obtaining PyFrameObject from a native frame.");
-                return null;
+                return 0;
             }
-
-            return new PyFrameObject(frame.Process, framePtr);
         }
 
         public PointerProxy<PyFrameObject> f_back {
@@ -135,6 +144,13 @@ namespace Microsoft.PythonTools.Debugger.Concord.Proxies.Structs {
         public ArrayProxy<PointerProxy<PyObject>> f_localsplus {
             get { return GetFieldProxy((_fields as Fields_36)?.f_localsplus ?? (_fields as Fields_27_35)?.f_localsplus); }
         }
+    }
 
+    internal enum NativeFrameKind {
+        Other,
+        Python = 1000, // for conditionals: (kind >= NativeFrameKind.Python)
+        PyEval_EvalFrameEx = Python,
+        PyEval_EvalFrameDefault,
+        EvalFrameFunc,
     }
 }
