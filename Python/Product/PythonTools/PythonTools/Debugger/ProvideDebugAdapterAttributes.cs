@@ -27,10 +27,11 @@ namespace Microsoft.VisualStudioTools {
         private readonly string _customProtocolExtensionCLSID;
         private readonly string _languageName;
         private readonly string _languageId;
+        private readonly Type _programProviderType;
         private readonly Type _adapterLauncherType;
         private readonly Type _customProtocolType;
 
-        public ProvideDebugAdapterAttribute(string name, string engineId, string adapterLauncherCLSID, string customProtocolExtensionCLSID, string languageName, string languageId, Type adapterLauncherType, Type customProtocolType) {
+        public ProvideDebugAdapterAttribute(string name, string engineId, string adapterLauncherCLSID, string customProtocolExtensionCLSID, string languageName, string languageId, Type adapterLauncherType, Type customProtocolType, Type programProviderType) {
             _name = name;
             _engineId = engineId;
             _adapterLauncherCLSID = adapterLauncherCLSID;
@@ -39,6 +40,7 @@ namespace Microsoft.VisualStudioTools {
             _languageId = languageId;
             _adapterLauncherType = adapterLauncherType;
             _customProtocolType = customProtocolType;
+            _programProviderType = programProviderType;
         }
 
         public override void Register(RegistrationContext context) {
@@ -67,7 +69,8 @@ namespace Microsoft.VisualStudioTools {
              *         its CLSID in the "AdapterLauncher" property below.
              */
             engineKey.SetValue("Attach", 1);
-            // engineKey.SetValue("PortSupplier", "{708C1ECA-FF48-11D2-904F-00C04FA302A1}");
+            engineKey.SetValue("PortSupplier", "{708C1ECA-FF48-11D2-904F-00C04FA302A1}");
+            engineKey.SetValue("ProgramProvider", _programProviderType.GUID.ToString("B"));
             engineKey.SetValue("AdapterLauncher", _adapterLauncherCLSID);
 
             /*
