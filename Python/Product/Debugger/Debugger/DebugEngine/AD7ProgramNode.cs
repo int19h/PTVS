@@ -24,10 +24,12 @@ namespace Microsoft.PythonTools.Debugger.DebugEngine {
     // This interface represents a program that can be debugged.
     // A debug engine (DE) or a custom port supplier implements this interface to represent a program that can be debugged. 
     class AD7ProgramNode : IDebugProgramNode2 {
-        readonly int m_processId;
+        private readonly int _processId;
+        private readonly Guid _engineGuid;
 
-        public AD7ProgramNode(int processId) {
-            m_processId = processId;
+        public AD7ProgramNode(int processId, Guid engineGuid) {
+            _processId = processId;
+            _engineGuid = engineGuid;
         }
 
         #region IDebugProgramNode2 Members
@@ -35,9 +37,7 @@ namespace Microsoft.PythonTools.Debugger.DebugEngine {
         // Gets the name and identifier of the DE running this program.
         int IDebugProgramNode2.GetEngineInfo(out string engineName, out Guid engineGuid) {
             engineName = "Python";
-            //engineGuid = new Guid(AD7Engine.DebugEngineId);
-            engineGuid = DebugAdapterLauncher.VSCodeDebugEngine;
-
+            engineGuid = _engineGuid;
             return VSConstants.S_OK;
         }
 
@@ -45,7 +45,7 @@ namespace Microsoft.PythonTools.Debugger.DebugEngine {
         int IDebugProgramNode2.GetHostPid(AD_PROCESS_ID[] pHostProcessId) {
             // Return the process id of the debugged process
             pHostProcessId[0].ProcessIdType = (uint)enum_AD_PROCESS_ID.AD_PROCESS_ID_SYSTEM;
-            pHostProcessId[0].dwProcessId = (uint)m_processId;
+            pHostProcessId[0].dwProcessId = (uint)_processId;
 
             return VSConstants.S_OK;
         }

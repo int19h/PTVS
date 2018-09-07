@@ -98,7 +98,7 @@ namespace Microsoft.PythonTools.Debugger.DebugEngine {
         // These constants are duplicated in HpcLauncher and cannot be changed
 
         public const string DebugEngineId = "{EC1375B7-E2CE-43E8-BF75-DC638DE1F1F9}";
-        public const string DebugEngineName = "Python";
+        public const string DebugEngineName = "Python (legacy)";
         public static Guid DebugEngineGuid = new Guid(DebugEngineId);
         public const string SourceDirectoryKey = "sd";
         public const string TargetDirectoryKey = "td";
@@ -926,7 +926,7 @@ namespace Microsoft.PythonTools.Debugger.DebugEngine {
             IDebugPortNotify2 portNotify;
             EngineUtils.RequireOk(defaultPort.GetPortNotify(out portNotify));
 
-            EngineUtils.RequireOk(portNotify.AddProgramNode(new AD7ProgramNode(_process.Id)));
+            EngineUtils.RequireOk(portNotify.AddProgramNode(new AD7ProgramNode(_process.Id, DebugEngineGuid)));
 
             if (_ad7ProgramId == Guid.Empty) {
                 Debug.WriteLine("ResumeProcess fails, empty program guid");

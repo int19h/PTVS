@@ -46,7 +46,6 @@ namespace Microsoft.VisualStudioTools {
         public override void Register(RegistrationContext context) {
             var engineKey = context.CreateKey("AD7Metrics\\Engine\\" + _engineId);
 
-
             // The following this line are boiler-plate settings required by all debug adapters.
             // Indicates that the "Debug Adapter Host" engine should be used
             engineKey.SetValue("CLSID", _debugAdapterHostCLSID);
@@ -69,9 +68,19 @@ namespace Microsoft.VisualStudioTools {
              *         its CLSID in the "AdapterLauncher" property below.
              */
             engineKey.SetValue("Attach", 1);
+            engineKey.SetValue("AutoSelectPriority", 6);
             engineKey.SetValue("PortSupplier", "{708C1ECA-FF48-11D2-904F-00C04FA302A1}");
             engineKey.SetValue("ProgramProvider", _programProviderType.GUID.ToString("B"));
             engineKey.SetValue("AdapterLauncher", _adapterLauncherCLSID);
+
+            using (var incompatKey = engineKey.CreateSubkey("IncompatibleList")) {
+                incompatKey.SetValue("guidCOMPlusNativeEng", "{92EF0900-2251-11D2-B72E-0000F87572EF}");
+                incompatKey.SetValue("guidCOMPlusOnlyEng", "{449EC4CC-30D2-4032-9256-EE18EB41B62B}");
+                incompatKey.SetValue("guidScriptEng", "{F200A7E7-DEA5-11D0-B854-00A0244A1DE2}");
+                incompatKey.SetValue("guidCOMPlusOnlyEng2", "{5FFF7536-0C87-462D-8FD2-7971D948E6DC}");
+                incompatKey.SetValue("guidCOMPlusOnlyEng4", "{FB0D4648-F776-4980-95F8-BB7F36EBC1EE}");
+                incompatKey.SetValue("guidNativeOnlyEng", "{3B476D35-A401-11D2-AAD4-00C04F990171}");
+            }
 
             /*
              * Modules request on attach behavior(optional)
@@ -80,6 +89,7 @@ namespace Microsoft.VisualStudioTools {
              * attach and don't need the "modules" request, so it can be disabled by setting this property to "1".
              */
             engineKey.SetValue("SuppressModulesRequestOnAttach", 1);
+
             /*
              * Custom Protocol Extensions (optional)
              *   A debug adapter can implement non-standard extensions to the VS Code Debug Protocol, e.g. to communicate with

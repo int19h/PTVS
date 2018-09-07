@@ -15,10 +15,9 @@
 // permissions and limitations under the License.
 
 using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.PythonTools.Debugger.Remote;
 using Microsoft.VisualStudio.Debugger.DebugAdapterHost.Interfaces;
-using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
 
 namespace Microsoft.PythonTools.Debugger {
@@ -26,27 +25,25 @@ namespace Microsoft.PythonTools.Debugger {
     [Guid(DebugAdapterLauncherCLSIDNoBraces)]
     public sealed class DebugAdapterLauncher : IAdapterLauncher {
         public const string DebugAdapterLauncherCLSIDNoBraces = "C2990BF1-A87B-4459-9478-322482C535D6";
-        public const string DebugAdapterLauncherCLSID = "{"+ DebugAdapterLauncherCLSIDNoBraces + "}";
+        public const string DebugAdapterLauncherCLSID = "{" + DebugAdapterLauncherCLSIDNoBraces + "}";
         public const string VSCodeDebugEngineId = "{86432F39-ADFD-4C56-AA8F-AF8FCDC66039}";
         public static Guid VSCodeDebugEngine = new Guid(VSCodeDebugEngineId);
 
-        public DebugAdapterLauncher(){}
+        public DebugAdapterLauncher() { }
 
         public void Initialize(IDebugAdapterHostContext context) {
         }
 
         public ITargetHostProcess LaunchAdapter(IAdapterLaunchInfo launchInfo, ITargetHostInterop targetInterop) {
-            // ITargetHostInterop provides a convenience wrapper to start the process
-            // return targetInterop.ExecuteCommandAsync(path, "");
-
-            // If you need more control use the DebugAdapterProcess
-            if(launchInfo.LaunchType == LaunchType.Attach) {
+            if (launchInfo.LaunchType == LaunchType.Attach && launchInfo.DebugPort is PythonRemoteDebugPort) {
                 return DebugAdapterRemoteProcess.Attach(launchInfo.LaunchJson);
+            } else {
+                return DebugAdapterProcess.Start(launchInfo.LaunchJson);
             }
-            return DebugAdapterProcess.Start(launchInfo.LaunchJson);
         }
+
         public void UpdateLaunchOptions(IAdapterLaunchInfo launchInfo) {
-            if(launchInfo.LaunchType == LaunchType.Attach) {
+            if (launchInfo.LaunchType == LaunchType.Attach) {
                 launchInfo.DebugPort.GetPortName(out string uri);
                 JObject obj = new JObject {
                     ["remote"] = uri

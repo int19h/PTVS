@@ -16,6 +16,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using Microsoft.PythonTools.Interpreter;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Debugger.Interop;
 
@@ -68,7 +69,8 @@ namespace Microsoft.PythonTools.Debugger.DebugEngine {
                 // then we report the program as being a Python process.
 
                 if (DebugAttach.IsPythonProcess((int)ProcessId.dwProcessId)) {
-                    IDebugProgramNode2 node = new AD7ProgramNode((int)ProcessId.dwProcessId);
+                    IDebugProgramNode2 node = new AD7ProgramNode((int)ProcessId.dwProcessId,
+                        ExperimentalOptions.UseVsCodeDebugger ? DebugAdapterLauncher.VSCodeDebugEngine : AD7Engine.DebugEngineGuid);
 
                     IntPtr[] programNodes = { Marshal.GetComInterfaceForObject(node, typeof(IDebugProgramNode2)) };
 
