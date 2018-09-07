@@ -64,24 +64,23 @@ try:
 
     # Must not contain single quotes!
     code = '''
-    ptvs_lib_path = bytes({ptvs_lib_path}).decode("utf-8")
+ptvs_lib_path = bytes({ptvs_lib_path}).decode("utf-8")
 
-    import sys
-    if {bundled_ptvsd}:
-        sys.path.insert(0, ptvs_lib_path")
-    else:
-        sys.path.append(ptvs_lib_path")
+import sys
+if {bundled_ptvsd}:
+    sys.path.insert(0, ptvs_lib_path)
+else:
+    sys.path.append(ptvs_lib_path)
 
-    from ptvsd._remote import _attach
-    attach(("0.0.0.0", {port_num}))
+import ptvsd
+
+from ptvsd._remote import _attach
+_attach(("127.0.0.1", {port_num}))
     '''.format(
         bundled_ptvsd=bundled_ptvsd,
         ptvs_lib_path=repr(list(ptvs_lib_path.encode('utf-8'))),
         port_num=port_num)
-    print('------')
-    print(code)
-    print('------')
-    run_python_code(pid, code)
+    run_python_code(pid, code, connect_debugger_tracing=True)
 
 except:
     traceback.print_exc()

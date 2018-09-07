@@ -125,34 +125,11 @@ namespace Microsoft.PythonTools.Debugger {
                 StartInfo = psi
             };
 
-            _process.Exited += OnExited;
+            _process.Exited += OnDebugLauncherExited;
+            _process.Exited += OnTargetProcessExited;
             _process.Start();
 
-            var logger = (IPythonToolsLogger)VisualStudio.Shell.ServiceProvider.GlobalProvider.GetService(typeof(IPythonToolsLogger));
-
-            try {
-                if (connection.Wait(_debuggerConnectionTimeout)) {
-                    var socket = connection.Result;
-                    if (socket != null) {
-                        _debuggerConnected = true;
-                        _stream = new DebugAdapterProcessStream(new NetworkStream(socket, ownsSocket: true));
-                        _stream.Initialized += OnInitialized;
-                        _stream.LegacyDebugger += OnLegacyDebugger;
-                        if (!string.IsNullOrEmpty(_webBrowserUrl) && Uri.TryCreate(_webBrowserUrl, UriKind.RelativeOrAbsolute, out Uri uri)) {
-                            OnPortOpenedHandler.CreateHandler(uri.Port, null, null, ProcessExited, LaunchBrowserDebugger);
-                        }
-                    }
-                } else {
-                    Debug.WriteLine("Timed out waiting for debuggee to connect.", nameof(DebugAdapterProcess));
-                    logger?.LogEvent(PythonLogEvent.DebugAdapterConnectionTimeout, "Launch");
-                }
-            } catch (AggregateException ex) {
-                Debug.WriteLine("Error waiting for debuggee to connect {0}".FormatInvariant(ex.InnerException ?? ex), nameof(DebugAdapterProcess));
-            }
-
-            if (_stream == null && !_process.HasExited) {
-                _process.Kill();
-            }
+            HandleIncomingConnection(connection);
         }
 
         private void AttachToProcess(int pid) {
@@ -182,14 +159,20 @@ namespace Microsoft.PythonTools.Debugger {
                 CreateNoWindow = false,
             };
 
-            _process = new Process {
+            var launcherProcess = new Process {
                 EnableRaisingEvents = true,
                 StartInfo = psi
             };
+            launcherProcess.Exited += OnDebugLauncherExited;
 
-            _process.Exited += OnExited;
-            _process.Start();
+            _process = Process.GetProcessById(pid);
+            _process.Exited += OnTargetProcessExited;
 
+            launcherProcess.Start();
+            HandleIncomingConnection(connection);
+        }
+
+        private void HandleIncomingConnection(Task<Socket> connection) {
             var logger = (IPythonToolsLogger)VisualStudio.Shell.ServiceProvider.GlobalProvider.GetService(typeof(IPythonToolsLogger));
 
             try {
@@ -257,19 +240,22 @@ namespace Microsoft.PythonTools.Debugger {
             return true;
         }
 
-        private void OnExited(object sender, EventArgs e) {
-            Debug.WriteLine($"Debug adapter exited with code: {_process.ExitCode}", nameof(DebugAdapterProcess));
+        private void OnTargetProcessExited(object sender, EventArgs e) {
             if (_stream != null) {
                 _stream.Dispose();
             }
+        }
 
-            if (_process.ExitCode == 126 && !_debuggerConnected) {
+        private void OnDebugLauncherExited(object sender, EventArgs e) {
+            var launcherProcess = (Process)sender;
+            Debug.WriteLine($"Debug adapter exited with code: {launcherProcess.ExitCode}", nameof(DebugAdapterProcess));
+            if (launcherProcess.ExitCode == 126 && !_debuggerConnected) {
                 // 126 : ERROR_MOD_NOT_FOUND
                 // This error code is returned only for the experimental debugger. MessageBox must be
                 // bound to the VS Main window otherwise it can be hidden behind the main window and the 
                 // user may not see it.
                 PtvsdVersionHelper.ShowPtvsdModuleNotFoundError();
-            } else if (_process.ExitCode == 687 && !_debuggerConnected) {
+            } else if (launcherProcess.ExitCode == 687 && !_debuggerConnected) {
                 // 687: ERROR_DLL_MIGHT_BE_INCOMPATIBLE
                 // This error is returned only for the experimental debugger,
                 // when running under an interpreter that is not supported.
