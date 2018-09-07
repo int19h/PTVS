@@ -56,9 +56,7 @@ try:
 
     del sys.argv[1:]
     sys.argv += ['--host', '127.0.0.1', '--port', str(port_num), '--pid', str(pid)]
-
-    import runpy
-    runpy.run_module('ptvsd', run_name='__main__')
+    import ptvsd.__main__
 
 except:
     traceback.print_exc()
