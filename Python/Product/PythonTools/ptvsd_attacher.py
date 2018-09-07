@@ -34,14 +34,7 @@ pid = int(sys.argv[1])
 port_num = int(sys.argv[2])
 debug_id = sys.argv[3]
 debug_options = set([opt.strip() for opt in sys.argv[4].split(',')])
-
-del sys.argv[0:5]
-
-# Use bundled ptvsd or not?
-bundled_ptvsd = True
-if sys.argv and sys.argv[0] == '-g':
-    bundled_ptvsd = False
-    del sys.argv[0]
+bundled_ptvsd = not (len(sys.argv) > 5 and sys.argv[5] == '-g')
 
 # Load the debugger package
 try:
@@ -55,32 +48,17 @@ try:
         #sys.path.append(ptvs_lib_path)
         ptvs_lib_path = 'c:/git/ptvsd'
         sys.path.insert(0, ptvs_lib_path)
-    import ptvsd, pydevd
+
+    print(sys.path)
+    import ptvsd
+    print(ptvsd.__file__)
     ptvsd_loaded = True
 
-    pydevd_attach_to_process_path = os.path.join(os.path.dirname(pydevd.__file__), 'pydevd_attach_to_process')
-    sys.path.append(pydevd_attach_to_process_path)
-    from add_code_to_python_process import run_python_code
+    del sys.argv[1:]
+    sys.argv += ['--host', '127.0.0.1', '--port', str(port_num), '--pid', str(pid)]
 
-    # Must not contain single quotes!
-    code = '''
-ptvs_lib_path = bytes({ptvs_lib_path}).decode("utf-8")
-
-import sys
-if {bundled_ptvsd}:
-    sys.path.insert(0, ptvs_lib_path)
-else:
-    sys.path.append(ptvs_lib_path)
-
-import ptvsd
-
-from ptvsd._remote import _attach
-_attach(("127.0.0.1", {port_num}))
-    '''.format(
-        bundled_ptvsd=bundled_ptvsd,
-        ptvs_lib_path=repr(list(ptvs_lib_path.encode('utf-8'))),
-        port_num=port_num)
-    run_python_code(pid, code, connect_debugger_tracing=True)
+    import runpy
+    runpy.run_module('ptvsd', run_name='__main__')
 
 except:
     traceback.print_exc()
