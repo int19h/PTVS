@@ -27,7 +27,9 @@ using System.Threading.Tasks;
 using System.Web;
 using Microsoft.PythonTools.Debugger.DebugEngine;
 using Microsoft.PythonTools.Infrastructure;
+using Microsoft.PythonTools.Interpreter;
 using Microsoft.PythonTools.Logging;
+using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.Debugger.DebugAdapterHost.Interfaces;
 using Microsoft.VisualStudio.Shell.Interop;
 using Newtonsoft.Json.Linq;
@@ -71,6 +73,12 @@ namespace Microsoft.PythonTools.Debugger {
             return debugProcess;
         }
 
+        public static ITargetHostProcess Attach(int processId) {
+            var debugProcess = new DebugAdapterProcess();
+            debugProcess.AttachToProcess(processId);
+            return debugProcess;
+        }
+
         private void StartProcess(string launchJson) {
             var connection = InitializeListenerSocket();
 
@@ -111,6 +119,68 @@ namespace Microsoft.PythonTools.Debugger {
                     psi.EnvironmentVariables[name] = value;
                 }
             }
+
+            _process = new Process {
+                EnableRaisingEvents = true,
+                StartInfo = psi
+            };
+
+            _process.Exited += OnExited;
+            _process.Start();
+
+            var logger = (IPythonToolsLogger)VisualStudio.Shell.ServiceProvider.GlobalProvider.GetService(typeof(IPythonToolsLogger));
+
+            try {
+                if (connection.Wait(_debuggerConnectionTimeout)) {
+                    var socket = connection.Result;
+                    if (socket != null) {
+                        _debuggerConnected = true;
+                        _stream = new DebugAdapterProcessStream(new NetworkStream(socket, ownsSocket: true));
+                        _stream.Initialized += OnInitialized;
+                        _stream.LegacyDebugger += OnLegacyDebugger;
+                        if (!string.IsNullOrEmpty(_webBrowserUrl) && Uri.TryCreate(_webBrowserUrl, UriKind.RelativeOrAbsolute, out Uri uri)) {
+                            OnPortOpenedHandler.CreateHandler(uri.Port, null, null, ProcessExited, LaunchBrowserDebugger);
+                        }
+                    }
+                } else {
+                    Debug.WriteLine("Timed out waiting for debuggee to connect.", nameof(DebugAdapterProcess));
+                    logger?.LogEvent(PythonLogEvent.DebugAdapterConnectionTimeout, "Launch");
+                }
+            } catch (AggregateException ex) {
+                Debug.WriteLine("Error waiting for debuggee to connect {0}".FormatInvariant(ex.InnerException ?? ex), nameof(DebugAdapterProcess));
+            }
+
+            if (_stream == null && !_process.HasExited) {
+                _process.Kill();
+            }
+        }
+
+        private void AttachToProcess(int pid) {
+            var components = (IComponentModel)VisualStudio.Shell.ServiceProvider.GlobalProvider.GetService(typeof(SComponentModel));
+            var interp = components.GetService<IInterpreterOptionsService>();
+            var exe = interp.DefaultInterpreter.Configuration.InterpreterPath;
+
+            var connection = InitializeListenerSocket();
+
+            var argsList = new List<string> {
+                PythonToolsInstallPath.GetFile("ptvsd_attacher.py"),
+                $"{pid}",
+                $"{_listenerPort}",
+                $"{_processGuid}",
+                $"{_debugOptions}",
+                "-g"
+            };
+            var arguments = string.Join(" ", argsList.Select(ProcessOutput.QuoteSingleArgument));
+
+            var psi = new ProcessStartInfo {
+                FileName = exe,
+                Arguments = arguments,
+                RedirectStandardError = false,
+                RedirectStandardInput = false,
+                RedirectStandardOutput = false,
+                UseShellExecute = false,
+                CreateNoWindow = false,
+            };
 
             _process = new Process {
                 EnableRaisingEvents = true,

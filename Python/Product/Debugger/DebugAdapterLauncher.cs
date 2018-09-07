@@ -35,10 +35,19 @@ namespace Microsoft.PythonTools.Debugger {
         }
 
         public ITargetHostProcess LaunchAdapter(IAdapterLaunchInfo launchInfo, ITargetHostInterop targetInterop) {
-            if (launchInfo.LaunchType == LaunchType.Attach && launchInfo.DebugPort is PythonRemoteDebugPort) {
-                return DebugAdapterRemoteProcess.Attach(launchInfo.LaunchJson);
-            } else {
-                return DebugAdapterProcess.Start(launchInfo.LaunchJson);
+            switch (launchInfo.LaunchType) {
+                case LaunchType.Launch:
+                    return DebugAdapterProcess.Start(launchInfo.LaunchJson);
+                case LaunchType.Attach:
+                    if (launchInfo.LaunchLocation == LaunchLocation.Local) {
+                        return DebugAdapterProcess.Attach(launchInfo.AttachProcessId);
+                    } else if (launchInfo.DebugPort is PythonRemoteDebugPort) {
+                        return DebugAdapterRemoteProcess.Attach(launchInfo.LaunchJson);
+                    } else {
+                        goto default;
+                    }
+                default:
+                    throw new NotSupportedException();
             }
         }
 

@@ -711,6 +711,10 @@
   <ItemGroup>
     <!-- VSIX -->
     <Compile Include="PythonTools\Repl\PythonInteractiveEvaluator.CommandProcessorThread.cs" />
+    <Content Include="ptvsd_attacher.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <Content Include="Theme\Microsoft.PythonTools.theme.v16.0.pkgdef" />
     <Content Include="Theme\Repl\Microsoft.PythonTools.Repl.theme.v15.0.pkgdef" />
     <Content Include="Theme\Repl\Microsoft.PythonTools.Repl.theme.v16.0.pkgdef" />
